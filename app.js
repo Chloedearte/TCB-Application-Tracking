@@ -1,23 +1,3 @@
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
-import {
-  getAuth,
-  onAuthStateChanged,
-  signInWithEmailAndPassword,
-  signOut
-} from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
-import {
-  addDoc,
-  collection,
-  doc,
-  getDoc,
-  getDocs,
-  getFirestore,
-  orderBy,
-  query,
-  serverTimestamp,
-  setDoc
-} from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
-
 const stages = [
   { code: "1", name: "Prelim Interview", detail: "Initial screening conversation" },
   { code: "2A", name: "Pre-Qualifying Assessment Part 1", detail: "Group Case Study" },
@@ -73,6 +53,17 @@ const viewMeta = {
 let app;
 let auth;
 let db;
+let addDoc;
+let collection;
+let doc;
+let getDoc;
+let getDocs;
+let orderBy;
+let query;
+let serverTimestamp;
+let setDoc;
+let signInWithEmailAndPassword;
+let signOut;
 let firebaseReady = false;
 let currentAdmin = null;
 let candidates = [...seedCandidates];
@@ -90,6 +81,38 @@ document.addEventListener("DOMContentLoaded", async () => {
 
 async function initializeFirebase() {
   try {
+    const [
+      appModule,
+      authModule,
+      firestoreModule
+    ] = await Promise.all([
+      import("https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js"),
+      import("https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js"),
+      import("https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js")
+    ]);
+
+    const { initializeApp } = appModule;
+    const {
+      getAuth,
+      onAuthStateChanged
+    } = authModule;
+    ({
+      signInWithEmailAndPassword,
+      signOut
+    } = authModule);
+    const { getFirestore } = firestoreModule;
+    ({
+      addDoc,
+      collection,
+      doc,
+      getDoc,
+      getDocs,
+      orderBy,
+      query,
+      serverTimestamp,
+      setDoc
+    } = firestoreModule);
+
     const firebaseConfig = await loadFirebaseConfig();
     app = initializeApp(firebaseConfig);
     auth = getAuth(app);
@@ -116,6 +139,10 @@ async function initializeFirebase() {
 }
 
 async function loadFirebaseConfig() {
+  if (window.TCB_FIREBASE_CONFIG) {
+    return window.TCB_FIREBASE_CONFIG;
+  }
+
   const response = await fetch("/__/firebase/init.json", { cache: "no-store" });
   if (!response.ok) throw new Error("Firebase Hosting init config unavailable.");
   return response.json();
