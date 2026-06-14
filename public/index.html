@@ -44,8 +44,8 @@
       </nav>
 
       <div class="sidebar-note">
-        <strong>Prototype mode</strong>
-        <p>OTP, admin access, email sending and database writes are simulated locally.</p>
+        <strong>Firebase connected</strong>
+        <p>Admin records are stored in Firestore. Candidate OTP remains simulated until a live OTP service is added.</p>
       </div>
     </aside>
 
@@ -58,7 +58,7 @@
         </div>
         <div class="session-card" id="sessionCard">
           <span class="session-dot"></span>
-          <span>Prototype data</span>
+          <span id="sessionText">Connecting to Firebase</span>
         </div>
       </header>
 
@@ -129,8 +129,31 @@
       </section>
 
       <section class="view" id="admin-dashboard" aria-labelledby="adminHeading">
-        <div class="dashboard-grid" id="metricGrid"></div>
-        <div class="panel">
+        <div class="panel auth-panel" id="adminAuthPanel">
+          <div class="panel-heading">
+            <p class="eyebrow">Admin Access</p>
+            <h3>Sign in to manage candidates</h3>
+            <p>Only approved hiring team members can view or update candidate records.</p>
+          </div>
+          <form id="adminLoginForm">
+            <label for="adminEmail">Admin email</label>
+            <input id="adminEmail" type="email" autocomplete="email" placeholder="admin@email.com" required>
+            <label for="adminPassword">Password</label>
+            <input id="adminPassword" type="password" autocomplete="current-password" required>
+            <div class="button-row">
+              <button class="btn primary" type="submit">Sign In</button>
+            </div>
+            <p class="form-message" id="adminLoginMessage" role="status"></p>
+          </form>
+        </div>
+
+        <div class="admin-content" id="adminDashboardContent" hidden>
+          <div class="admin-statusbar">
+            <span id="adminIdentity">Signed in</span>
+            <button class="text-btn" type="button" id="adminSignOutBtn">Sign out</button>
+          </div>
+          <div class="dashboard-grid" id="metricGrid"></div>
+          <div class="panel">
           <div class="panel-toolbar">
             <div>
               <p class="eyebrow">Admin Workspace</p>
@@ -165,10 +188,18 @@
             <button class="text-btn" type="button" id="clearFiltersBtn">Clear filters</button>
           </div>
           <div class="candidate-list" id="candidateList"></div>
+          </div>
         </div>
       </section>
 
       <section class="view" id="candidate-update" aria-labelledby="updateHeading">
+        <div class="panel admin-locked" hidden>
+          <h3>Admin sign-in required</h3>
+          <p>Sign in from the Admin Dashboard to update candidate records.</p>
+          <div class="button-row">
+            <button class="btn primary" type="button" data-view-target="admin-dashboard">Go to Admin Login</button>
+          </div>
+        </div>
         <div class="two-column">
           <form class="panel" id="candidateForm">
             <div class="panel-heading">
@@ -207,6 +238,13 @@
       </section>
 
       <section class="view" id="bulk-upload" aria-labelledby="bulkHeading">
+        <div class="panel admin-locked" hidden>
+          <h3>Admin sign-in required</h3>
+          <p>Sign in from the Admin Dashboard to upload or apply bulk updates.</p>
+          <div class="button-row">
+            <button class="btn primary" type="button" data-view-target="admin-dashboard">Go to Admin Login</button>
+          </div>
+        </div>
         <div class="two-column">
           <div class="panel">
             <div class="panel-heading">
@@ -242,6 +280,6 @@
   </div>
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
-  <script src="app.js"></script>
+  <script type="module" src="app.js"></script>
 </body>
 </html>

@@ -1,4 +1,22 @@
-const STORAGE_KEY = "tcb-candidate-records-v1";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
+import {
+  getAuth,
+  onAuthStateChanged,
+  signInWithEmailAndPassword,
+  signOut
+} from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
+import {
+  addDoc,
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  getFirestore,
+  orderBy,
+  query,
+  serverTimestamp,
+  setDoc
+} from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 
 const stages = [
   { code: "1", name: "Prelim Interview", detail: "Initial screening conversation" },
@@ -35,67 +53,16 @@ const seedCandidates = [
     id: "cand-001",
     full_name: "Amira Tan",
     email: "amira.tan@email.com",
+    email_normalized: "amira.tan@email.com",
     university: "University of Malaya",
     degree_field: "Business Analytics",
     current_stage: "Pre-Qualifying Assessment Part 1",
     current_status: "Scheduled",
-    notes: "Scheduled for next PQA group case study batch. Candidate email sent separately by hiring team.",
+    notes: "Demo note. Admin notes are not shown in the candidate view.",
     last_updated_at: "2026-06-14T10:15:00+08:00",
     created_at: "2026-06-01T09:00:00+08:00"
-  },
-  {
-    id: "cand-002",
-    full_name: "Jason Lim",
-    email: "jason.lim@email.com",
-    university: "Monash University Malaysia",
-    degree_field: "Banking & Finance",
-    current_stage: "Pre-Qualifying Assessment Part 1",
-    current_status: "Pending Review",
-    notes: "Awaiting reviewer decision.",
-    last_updated_at: "2026-06-13T16:40:00+08:00",
-    created_at: "2026-06-01T09:20:00+08:00"
-  },
-  {
-    id: "cand-003",
-    full_name: "Nur Aisyah",
-    email: "aisyah@email.com",
-    university: "UiTM",
-    degree_field: "Economics",
-    current_stage: "Prelim Interview",
-    current_status: "Passed",
-    notes: "Proceed to scheduling.",
-    last_updated_at: "2026-06-12T11:30:00+08:00",
-    created_at: "2026-06-01T10:10:00+08:00"
-  },
-  {
-    id: "cand-004",
-    full_name: "Wei Jun",
-    email: "weijun@email.com",
-    university: "HELP University",
-    degree_field: "Psychology",
-    current_stage: "Assessment Day Part 2",
-    current_status: "KIV",
-    notes: "Keep in view pending panel calibration.",
-    last_updated_at: "2026-06-11T15:05:00+08:00",
-    created_at: "2026-06-01T11:10:00+08:00"
-  },
-  {
-    id: "cand-005",
-    full_name: "Priya Raman",
-    email: "priya.raman@email.com",
-    university: "Taylor's University",
-    degree_field: "Accounting",
-    current_stage: "Final Outcome",
-    current_status: "Offer",
-    notes: "Offer communication in progress.",
-    last_updated_at: "2026-06-14T09:30:00+08:00",
-    created_at: "2026-06-02T09:00:00+08:00"
   }
 ];
-
-let candidates = loadCandidates();
-let activeCandidateEmail = "amira.tan@email.com";
-let validatedRows = [];
 
 const viewMeta = {
   "candidate-login": ["Candidate Access", "Verify your email to view your personal hiring status."],
@@ -105,27 +72,55 @@ const viewMeta = {
   "bulk-upload": ["Bulk Upload", "Validate and apply high-volume status updates."]
 };
 
-document.addEventListener("DOMContentLoaded", () => {
+let app;
+let auth;
+let db;
+let firebaseReady = false;
+let currentAdmin = null;
+let candidates = [...seedCandidates];
+let activeCandidateEmail = "amira.tan@email.com";
+let validatedRows = [];
+
+document.addEventListener("DOMContentLoaded", async () => {
   populateSelects();
   bindEvents();
   renderAll();
   fillUpdateForm(getCandidateByEmail(activeCandidateEmail));
+  setAdminUi(false);
+  await initializeFirebase();
 });
 
-function loadCandidates() {
-  const stored = localStorage.getItem(STORAGE_KEY);
-  if (!stored) return [...seedCandidates];
-
+async function initializeFirebase() {
   try {
-    const parsed = JSON.parse(stored);
-    return Array.isArray(parsed) ? parsed : [...seedCandidates];
-  } catch {
-    return [...seedCandidates];
+    const firebaseConfig = await loadFirebaseConfig();
+    app = initializeApp(firebaseConfig);
+    auth = getAuth(app);
+    db = getFirestore(app);
+    firebaseReady = true;
+    setSession("Firebase connected", true);
+
+    onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        currentAdmin = null;
+        setAdminUi(false);
+        candidates = [...seedCandidates];
+        renderAll();
+        return;
+      }
+
+      await handleAdminSession(user);
+    });
+  } catch (error) {
+    firebaseReady = false;
+    setSession("Demo mode: Firebase unavailable", false);
+    showAdminMessage("Firebase is not connected in this preview. Deploy on Firebase Hosting or add local Firebase config.");
   }
 }
 
-function saveCandidates() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(candidates));
+async function loadFirebaseConfig() {
+  const response = await fetch("/__/firebase/init.json", { cache: "no-store" });
+  if (!response.ok) throw new Error("Firebase Hosting init config unavailable.");
+  return response.json();
 }
 
 function bindEvents() {
@@ -139,6 +134,8 @@ function bindEvents() {
 
   document.getElementById("sendOtpBtn").addEventListener("click", sendOtp);
   document.getElementById("loginForm").addEventListener("submit", verifyOtp);
+  document.getElementById("adminLoginForm").addEventListener("submit", adminSignIn);
+  document.getElementById("adminSignOutBtn").addEventListener("click", adminSignOut);
   document.getElementById("statusForm").addEventListener("submit", saveCandidateUpdate);
   document.getElementById("loadCandidateBtn").addEventListener("click", loadCandidateFromEmail);
   document.getElementById("clearFiltersBtn").addEventListener("click", clearFilters);
@@ -152,6 +149,8 @@ function bindEvents() {
 }
 
 function showView(id) {
+  if (isAdminView(id) && !currentAdmin) id = "admin-dashboard";
+
   document.querySelectorAll(".view").forEach((view) => view.classList.remove("active"));
   document.getElementById(id).classList.add("active");
 
@@ -162,6 +161,10 @@ function showView(id) {
   document.getElementById("viewTitle").textContent = viewMeta[id][0];
   document.getElementById("viewSubtitle").textContent = viewMeta[id][1];
   window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function isAdminView(id) {
+  return ["candidate-update", "bulk-upload"].includes(id);
 }
 
 function populateSelects() {
@@ -179,7 +182,7 @@ function fillSelect(id, options) {
 }
 
 function fillUniversityFilter() {
-  const universities = [...new Set(candidates.map((candidate) => candidate.university))].sort();
+  const universities = [...new Set(candidates.map((candidate) => candidate.university).filter(Boolean))].sort();
   fillSelect("universityFilter", ["All universities", ...universities]);
 }
 
@@ -188,6 +191,85 @@ function renderAll() {
   renderMetrics();
   renderCandidateList();
   fillUniversityFilter();
+}
+
+async function adminSignIn(event) {
+  event.preventDefault();
+
+  if (!firebaseReady) {
+    showAdminMessage("Firebase is not connected yet.");
+    return;
+  }
+
+  const email = document.getElementById("adminEmail").value.trim();
+  const password = document.getElementById("adminPassword").value;
+
+  try {
+    showAdminMessage("Signing in...");
+    await signInWithEmailAndPassword(auth, email, password);
+  } catch (error) {
+    showAdminMessage("Sign-in failed. Check the admin email and password.");
+  }
+}
+
+async function adminSignOut() {
+  if (!auth) return;
+  await signOut(auth);
+  toast("Signed out.");
+}
+
+async function handleAdminSession(user) {
+  const adminSnapshot = await getDoc(doc(db, "admins", user.uid));
+
+  if (!adminSnapshot.exists()) {
+    currentAdmin = null;
+    setAdminUi(false);
+    showAdminMessage("This account is signed in but is not approved as an admin.");
+    await signOut(auth);
+    return;
+  }
+
+  currentAdmin = user;
+  setAdminUi(true, user.email);
+  await loadFirestoreCandidates();
+  toast("Admin dashboard connected.");
+}
+
+async function loadFirestoreCandidates() {
+  if (!currentAdmin) return;
+
+  const snapshot = await getDocs(query(collection(db, "candidates"), orderBy("last_updated_at", "desc")));
+  candidates = snapshot.docs.map((candidateDoc) => normalizeCandidate({
+    id: candidateDoc.id,
+    ...candidateDoc.data()
+  }));
+
+  if (!candidates.length) {
+    candidates = [];
+  }
+
+  renderAll();
+  fillUpdateForm(candidates[0] || null);
+}
+
+function setAdminUi(isAdmin, email = "") {
+  document.getElementById("adminAuthPanel").hidden = isAdmin;
+  document.getElementById("adminDashboardContent").hidden = !isAdmin;
+  document.querySelectorAll(".admin-locked").forEach((panel) => {
+    panel.hidden = isAdmin;
+  });
+  document.querySelectorAll("#candidate-update .two-column, #bulk-upload .two-column").forEach((panel) => {
+    panel.hidden = !isAdmin;
+  });
+
+  if (isAdmin) {
+    document.getElementById("adminIdentity").textContent = `Signed in as ${email}`;
+    showAdminMessage("");
+  }
+}
+
+function showAdminMessage(message) {
+  document.getElementById("adminLoginMessage").textContent = message;
 }
 
 function sendOtp() {
@@ -232,7 +314,7 @@ function verifyOtp(event) {
 }
 
 function renderCandidateJourney() {
-  const candidate = getCandidateByEmail(activeCandidateEmail) || candidates[0];
+  const candidate = getCandidateByEmail(activeCandidateEmail) || candidates[0] || seedCandidates[0];
   const currentStageIndex = stages.findIndex((stage) => stage.name === candidate.current_stage);
 
   document.getElementById("candidateName").textContent = candidate.full_name;
@@ -375,40 +457,57 @@ function loadCandidateFromEmail() {
   message.textContent = "Candidate record loaded.";
 }
 
-function saveCandidateUpdate(event) {
+async function saveCandidateUpdate(event) {
   event.preventDefault();
+
+  if (!currentAdmin) {
+    document.getElementById("updateMessage").textContent = "Please sign in as an approved admin first.";
+    return;
+  }
 
   const candidateForm = document.getElementById("candidateForm");
   if (!candidateForm.reportValidity() || !event.currentTarget.reportValidity()) return;
 
   const email = normalizeEmail(document.getElementById("editEmail").value);
-  const existingIndex = candidates.findIndex((candidate) => normalizeEmail(candidate.email) === email);
   const now = new Date().toISOString();
+  const existing = getCandidateByEmail(email);
   const record = {
-    id: existingIndex >= 0 ? candidates[existingIndex].id : `cand-${Date.now()}`,
     full_name: document.getElementById("editName").value.trim(),
     email,
+    email_normalized: email,
     university: document.getElementById("editUniversity").value.trim(),
     degree_field: document.getElementById("editDegree").value.trim(),
     current_stage: document.getElementById("editStage").value,
     current_status: document.getElementById("editStatus").value,
     notes: document.getElementById("editNotes").value.trim(),
     last_updated_at: now,
-    created_at: existingIndex >= 0 ? candidates[existingIndex].created_at : now
+    created_at: existing?.created_at || now,
+    updated_by: currentAdmin.email
   };
 
-  if (existingIndex >= 0) {
-    candidates[existingIndex] = record;
-  } else {
-    candidates.push(record);
-  }
-
-  activeCandidateEmail = record.email;
-  saveCandidates();
-  renderAll();
-  fillUpdateForm(record);
+  await writeCandidateRecord(record);
+  await loadFirestoreCandidates();
+  fillUpdateForm(getCandidateByEmail(email));
+  activeCandidateEmail = email;
   document.getElementById("updateMessage").textContent = "Candidate status updated successfully.";
-  toast("Candidate status saved.");
+  toast("Candidate status saved to Firestore.");
+}
+
+async function writeCandidateRecord(record) {
+  const documentId = candidateDocId(record.email);
+  await setDoc(doc(db, "candidates", documentId), {
+    ...record,
+    updated_at_server: serverTimestamp()
+  }, { merge: true });
+
+  await addDoc(collection(db, "stage_history"), {
+    candidate_email: record.email,
+    stage: record.current_stage,
+    status: record.current_status,
+    updated_by: currentAdmin.email,
+    updated_at: record.last_updated_at,
+    updated_at_server: serverTimestamp()
+  });
 }
 
 function clearFilters() {
@@ -492,7 +591,7 @@ function renderValidation(rows) {
     <span>${invalidCount} invalid</span>
   `;
 
-  document.getElementById("applyCsvBtn").disabled = validCount === 0;
+  document.getElementById("applyCsvBtn").disabled = validCount === 0 || !currentAdmin;
   document.getElementById("validationList").innerHTML = rows.length ? rows.map((row) => `
     <article class="validation-row ${row.valid ? "" : "invalid"}">
       <strong>Row ${row.rowNumber}: ${escapeHtml(row.record.email || "No email")}</strong>
@@ -501,37 +600,36 @@ function renderValidation(rows) {
   `).join("") : emptyState("No validation results yet.");
 }
 
-function applyValidRows() {
+async function applyValidRows() {
+  if (!currentAdmin) {
+    document.getElementById("bulkMessage").textContent = "Please sign in as an approved admin first.";
+    return;
+  }
+
   const validRows = validatedRows.filter((row) => row.valid);
 
-  validRows.forEach(({ record }) => {
+  for (const { record } of validRows) {
     const email = normalizeEmail(record.email);
-    const existingIndex = candidates.findIndex((candidate) => normalizeEmail(candidate.email) === email);
+    const existing = getCandidateByEmail(email);
     const now = new Date().toISOString();
-    const nextRecord = {
-      id: existingIndex >= 0 ? candidates[existingIndex].id : `cand-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+    await writeCandidateRecord({
       full_name: record.full_name.trim(),
       email,
+      email_normalized: email,
       university: record.university.trim(),
       degree_field: record.degree_field.trim(),
       current_stage: record.current_stage.trim(),
       current_status: record.current_status.trim(),
       notes: record.notes.trim(),
       last_updated_at: now,
-      created_at: existingIndex >= 0 ? candidates[existingIndex].created_at : now
-    };
+      created_at: existing?.created_at || now,
+      updated_by: currentAdmin.email
+    });
+  }
 
-    if (existingIndex >= 0) {
-      candidates[existingIndex] = nextRecord;
-    } else {
-      candidates.push(nextRecord);
-    }
-  });
-
-  saveCandidates();
-  renderAll();
+  await loadFirestoreCandidates();
   document.getElementById("bulkMessage").textContent = `${validRows.length} valid update${validRows.length === 1 ? "" : "s"} applied.`;
-  toast("Bulk updates applied.");
+  toast("Bulk updates applied to Firestore.");
 }
 
 function parseCsv(text) {
@@ -578,6 +676,22 @@ function sampleCsv() {
   ].join("\n");
 }
 
+function normalizeCandidate(candidate) {
+  return {
+    id: candidate.id || candidateDocId(candidate.email),
+    full_name: candidate.full_name || "",
+    email: candidate.email || "",
+    email_normalized: candidate.email_normalized || normalizeEmail(candidate.email),
+    university: candidate.university || "",
+    degree_field: candidate.degree_field || "",
+    current_stage: candidate.current_stage || stages[0].name,
+    current_status: candidate.current_status || "Scheduling",
+    notes: candidate.notes || "",
+    last_updated_at: candidate.last_updated_at || new Date().toISOString(),
+    created_at: candidate.created_at || new Date().toISOString()
+  };
+}
+
 function countStatus(status) {
   return candidates.filter((candidate) => candidate.current_status === status).length;
 }
@@ -585,6 +699,10 @@ function countStatus(status) {
 function getCandidateByEmail(email) {
   const normalized = normalizeEmail(email);
   return candidates.find((candidate) => normalizeEmail(candidate.email) === normalized);
+}
+
+function candidateDocId(email) {
+  return normalizeEmail(email).replaceAll("/", "_");
 }
 
 function normalizeEmail(email) {
@@ -596,21 +714,32 @@ function statusClass(status) {
 }
 
 function formatDateTime(value) {
+  const date = value?.toDate ? value.toDate() : new Date(value);
+  if (Number.isNaN(date.getTime())) return "Not updated yet";
+
   return new Intl.DateTimeFormat("en-MY", {
     day: "2-digit",
     month: "short",
     year: "numeric",
     hour: "numeric",
     minute: "2-digit"
-  }).format(new Date(value));
+  }).format(date);
 }
 
 function formatDate(value) {
+  const date = value?.toDate ? value.toDate() : new Date(value);
+  if (Number.isNaN(date.getTime())) return "Not updated yet";
+
   return new Intl.DateTimeFormat("en-MY", {
     day: "2-digit",
     month: "short",
     year: "numeric"
-  }).format(new Date(value));
+  }).format(date);
+}
+
+function setSession(text, connected) {
+  document.getElementById("sessionText").textContent = text;
+  document.querySelector(".session-dot").classList.toggle("offline", !connected);
 }
 
 function escapeHtml(value) {

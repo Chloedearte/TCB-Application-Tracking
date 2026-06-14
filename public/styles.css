@@ -218,6 +218,10 @@ button {
   background: var(--green);
 }
 
+.session-dot.offline {
+  background: var(--orange);
+}
+
 .view {
   display: none;
 }
@@ -318,6 +322,30 @@ button {
 
 .panel-heading,
 .panel-toolbar {
+  margin-bottom: 18px;
+}
+
+.auth-panel {
+  max-width: 560px;
+  margin-bottom: 18px;
+}
+
+.admin-statusbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  color: var(--muted);
+  background: var(--white);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.admin-locked {
   margin-bottom: 18px;
 }
 
