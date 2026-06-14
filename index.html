@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TCB Candidate Journey Portal</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="Primary navigation">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">TCB</div>
+        <div>
+          <h1>Candidate Journey</h1>
+          <p>The Complete Banker Programme</p>
+        </div>
+      </div>
+
+      <nav class="nav-stack" aria-label="Portal sections">
+        <button class="nav-btn active" data-view="candidate-login">
+          <span class="nav-icon" aria-hidden="true">01</span>
+          Candidate Access
+        </button>
+        <button class="nav-btn" data-view="candidate-journey">
+          <span class="nav-icon" aria-hidden="true">02</span>
+          Journey Status
+        </button>
+        <button class="nav-btn" data-view="admin-dashboard">
+          <span class="nav-icon" aria-hidden="true">03</span>
+          Admin Dashboard
+        </button>
+        <button class="nav-btn" data-view="candidate-update">
+          <span class="nav-icon" aria-hidden="true">04</span>
+          Update Candidate
+        </button>
+        <button class="nav-btn" data-view="bulk-upload">
+          <span class="nav-icon" aria-hidden="true">05</span>
+          Bulk Upload
+        </button>
+      </nav>
+
+      <div class="sidebar-note">
+        <strong>Prototype mode</strong>
+        <p>OTP, admin access, email sending and database writes are simulated locally.</p>
+      </div>
+    </aside>
+
+    <main class="main-content">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">TCB Candidate Portal</p>
+          <h2 id="viewTitle">Candidate Access</h2>
+          <p id="viewSubtitle">Verify your email to view your personal hiring status.</p>
+        </div>
+        <div class="session-card" id="sessionCard">
+          <span class="session-dot"></span>
+          <span>Prototype data</span>
+        </div>
+      </header>
+
+      <section class="view active" id="candidate-login" aria-labelledby="loginHeading">
+        <div class="login-layout">
+          <div class="intro-panel">
+            <p class="eyebrow">The Complete Banker Programme</p>
+            <h2 id="loginHeading">Check your latest TCB application status.</h2>
+            <p>Use the same email address submitted with your application. This portal shows stage and status only for candidates who has done prelim interview; detailed instructions will continue to arrive by email.</p>
+            <div class="assurance-grid">
+              <div>
+                <strong>Email OTP</strong>
+                <span>Candidate access is verified before status is shown.</span>
+              </div>
+              <div>
+                <strong>Private view</strong>
+                <span>Candidates only see their own application record.</span>
+              </div>
+              <div>
+                <strong>Simple updates</strong>
+                <span>Status, stage and guidance are kept easy to scan.</span>
+              </div>
+            </div>
+          </div>
+
+          <form class="panel login-panel" id="loginForm">
+            <div class="panel-heading">
+              <h3>Candidate Login</h3>
+              <p>For demo access, try <strong>amira.tan@email.com</strong> and OTP <strong>123456</strong>.</p>
+            </div>
+            <div class="notice">
+              Status tracking only. Full instructions, venue, meeting link and preparation notes will be sent separately by the hiring team.
+            </div>
+            <label for="candidateEmail">Email address</label>
+            <input id="candidateEmail" type="email" autocomplete="email" value="amira.tan@email.com" placeholder="name@email.com">
+            <div class="otp-row" id="otpRow" hidden>
+              <label for="candidateOtp">One-time passcode</label>
+              <input id="candidateOtp" type="text" inputmode="numeric" maxlength="6" value="123456" placeholder="6-digit OTP">
+            </div>
+            <div class="button-row">
+              <button class="btn primary" type="button" id="sendOtpBtn">Send OTP</button>
+              <button class="btn secondary" type="submit">Verify and View</button>
+            </div>
+            <p class="form-message" id="loginMessage" role="status"></p>
+          </form>
+        </div>
+      </section>
+
+      <section class="view" id="candidate-journey" aria-labelledby="journeyHeading">
+        <div class="panel">
+          <div class="candidate-summary">
+            <div>
+              <p class="eyebrow">Candidate View</p>
+              <h3 id="journeyHeading">Welcome, <span id="candidateName">Amira Tan</span></h3>
+              <p id="candidateMeta">TCB Programme</p>
+            </div>
+            <div class="status-chip" id="currentStatusChip">Scheduled</div>
+          </div>
+          <div class="notice">
+            This portal is for status tracking only. Please refer to emails from the hiring team for full details such as timing, venue, meeting link and preparation instructions.
+          </div>
+          <div class="journey-map" id="journeyMap"></div>
+          <div class="message-card">
+            <strong>Your current update</strong>
+            <p id="candidateStatusMessage"></p>
+          </div>
+        </div>
+      </section>
+
+      <section class="view" id="admin-dashboard" aria-labelledby="adminHeading">
+        <div class="dashboard-grid" id="metricGrid"></div>
+        <div class="panel">
+          <div class="panel-toolbar">
+            <div>
+              <p class="eyebrow">Admin Workspace</p>
+              <h3 id="adminHeading">Candidate Status Overview</h3>
+              <p>Search, filter, update records, and prepare bulk status changes.</p>
+            </div>
+            <div class="button-row compact">
+              <button class="btn secondary" type="button" data-view-target="bulk-upload">Bulk Upload</button>
+              <button class="btn primary" type="button" data-view-target="candidate-update">Update Candidate</button>
+            </div>
+          </div>
+          <div class="filter-grid">
+            <div>
+              <label for="searchInput">Search by name or email</label>
+              <input id="searchInput" type="search" placeholder="Search candidate...">
+            </div>
+            <div>
+              <label for="stageFilter">Stage</label>
+              <select id="stageFilter"></select>
+            </div>
+            <div>
+              <label for="statusFilter">Status</label>
+              <select id="statusFilter"></select>
+            </div>
+            <div>
+              <label for="universityFilter">University</label>
+              <select id="universityFilter"></select>
+            </div>
+          </div>
+          <div class="table-actions">
+            <span id="resultCount"></span>
+            <button class="text-btn" type="button" id="clearFiltersBtn">Clear filters</button>
+          </div>
+          <div class="candidate-list" id="candidateList"></div>
+        </div>
+      </section>
+
+      <section class="view" id="candidate-update" aria-labelledby="updateHeading">
+        <div class="two-column">
+          <form class="panel" id="candidateForm">
+            <div class="panel-heading">
+              <p class="eyebrow">Individual Update</p>
+              <h3 id="updateHeading">Update Candidate</h3>
+              <p>Find or add a candidate, then update the current stage and status.</p>
+            </div>
+            <label for="editEmail">Candidate email</label>
+            <input id="editEmail" type="email" required>
+            <label for="editName">Full name</label>
+            <input id="editName" type="text" required>
+            <label for="editUniversity">University</label>
+            <input id="editUniversity" type="text" required>
+            <label for="editDegree">Degree / field of study</label>
+            <input id="editDegree" type="text" required>
+          </form>
+
+          <form class="panel" id="statusForm">
+            <div class="panel-heading">
+              <h3>Status Update</h3>
+              <p>Admin notes stay internal and are never shown in the candidate view.</p>
+            </div>
+            <label for="editStage">Current stage</label>
+            <select id="editStage" required></select>
+            <label for="editStatus">Current status</label>
+            <select id="editStatus" required></select>
+            <label for="editNotes">Admin notes</label>
+            <textarea id="editNotes" rows="5"></textarea>
+            <div class="button-row">
+              <button class="btn primary" type="submit">Save Update</button>
+              <button class="btn secondary" type="button" id="loadCandidateBtn">Load by Email</button>
+            </div>
+            <p class="form-message" id="updateMessage" role="status"></p>
+          </form>
+        </div>
+      </section>
+
+      <section class="view" id="bulk-upload" aria-labelledby="bulkHeading">
+        <div class="two-column">
+          <div class="panel">
+            <div class="panel-heading">
+              <p class="eyebrow">Bulk Workflow</p>
+              <h3 id="bulkHeading">Bulk Upload / Update</h3>
+              <p>Paste CSV rows or upload a CSV file. Records are matched by unique email address.</p>
+            </div>
+            <label for="csvFile">CSV file</label>
+            <input id="csvFile" type="file" accept=".csv,text/csv">
+            <label for="csvInput">CSV content</label>
+            <textarea id="csvInput" class="mono-input" rows="10"></textarea>
+            <div class="button-row">
+              <button class="btn primary" type="button" id="validateCsvBtn">Validate Upload</button>
+              <button class="btn gold" type="button" id="applyCsvBtn" disabled>Apply Valid Updates</button>
+            </div>
+            <p class="form-message" id="bulkMessage" role="status"></p>
+          </div>
+
+          <div class="panel">
+            <div class="panel-heading">
+              <h3>Validation Preview</h3>
+              <p>Invalid rows are blocked. Valid rows can be applied together.</p>
+            </div>
+            <div class="preview-summary" id="previewSummary">
+              <span>0 valid</span>
+              <span>0 invalid</span>
+            </div>
+            <div class="validation-list" id="validationList"></div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script src="app.js"></script>
+</body>
+</html>
