@@ -254,12 +254,22 @@ async function adminSignOut() {
 }
 
 async function handleAdminSession(user) {
-  const adminSnapshot = await getDoc(doc(db, "admins", user.uid));
+  let adminSnapshot;
+
+  try {
+    adminSnapshot = await getDoc(doc(db, "admins", user.uid));
+  } catch (error) {
+    currentAdmin = null;
+    setAdminUi(false);
+    showAdminMessage(`Could not check admin access for UID ${user.uid}. Please confirm Firestore rules are deployed.`);
+    await signOut(auth);
+    return;
+  }
 
   if (!adminSnapshot.exists()) {
     currentAdmin = null;
     setAdminUi(false);
-    showAdminMessage("This account is signed in but is not approved as an admin.");
+    showAdminMessage(`This account is signed in but is not approved as an admin. Create Firestore document admins/${user.uid}.`);
     await signOut(auth);
     return;
   }
