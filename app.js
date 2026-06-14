@@ -67,9 +67,7 @@ const seedCandidates = [
 const viewMeta = {
   "candidate-login": ["Candidate Access", "Verify your email to view your personal hiring status."],
   "candidate-journey": ["Journey Status", "Full TCB journey map with current stage highlighted."],
-  "admin-dashboard": ["Admin Dashboard", "Manage shortlisted TCB candidates and stage progress."],
-  "candidate-update": ["Update Candidate", "Edit an individual candidate stage, status and admin notes."],
-  "bulk-upload": ["Bulk Upload", "Validate and apply high-volume status updates."]
+  "admin-dashboard": ["Admin Dashboard", "Manage shortlisted TCB candidates and stage progress."]
 };
 
 let app;
@@ -132,6 +130,10 @@ function bindEvents() {
     button.addEventListener("click", () => showView(button.dataset.viewTarget));
   });
 
+  document.querySelectorAll("[data-scroll-target]").forEach((button) => {
+    button.addEventListener("click", () => scrollToAdminPanel(button.dataset.scrollTarget));
+  });
+
   document.getElementById("sendOtpBtn").addEventListener("click", sendOtp);
   document.getElementById("loginForm").addEventListener("submit", verifyOtp);
   document.getElementById("adminLoginForm").addEventListener("submit", adminSignIn);
@@ -149,8 +151,6 @@ function bindEvents() {
 }
 
 function showView(id) {
-  if (isAdminView(id) && !currentAdmin) id = "admin-dashboard";
-
   document.querySelectorAll(".view").forEach((view) => view.classList.remove("active"));
   document.getElementById(id).classList.add("active");
 
@@ -163,8 +163,16 @@ function showView(id) {
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
-function isAdminView(id) {
-  return ["candidate-update", "bulk-upload"].includes(id);
+function scrollToAdminPanel(id) {
+  showView("admin-dashboard");
+  if (!currentAdmin) return;
+
+  requestAnimationFrame(() => {
+    document.getElementById(id)?.scrollIntoView({
+      behavior: "smooth",
+      block: "start"
+    });
+  });
 }
 
 function populateSelects() {
@@ -257,9 +265,6 @@ function setAdminUi(isAdmin, email = "") {
   document.getElementById("adminDashboardContent").hidden = !isAdmin;
   document.querySelectorAll(".admin-locked").forEach((panel) => {
     panel.hidden = isAdmin;
-  });
-  document.querySelectorAll("#candidate-update .two-column, #bulk-upload .two-column").forEach((panel) => {
-    panel.hidden = !isAdmin;
   });
 
   if (isAdmin) {
@@ -384,7 +389,7 @@ function renderCandidateList() {
     button.addEventListener("click", () => {
       const candidate = getCandidateByEmail(button.dataset.editEmail);
       fillUpdateForm(candidate);
-      showView("candidate-update");
+      scrollToAdminPanel("adminUpdatePanel");
     });
   });
 

@@ -33,14 +33,6 @@
           <span class="nav-icon" aria-hidden="true">03</span>
           Admin Dashboard
         </button>
-        <button class="nav-btn" data-view="candidate-update">
-          <span class="nav-icon" aria-hidden="true">04</span>
-          Update Candidate
-        </button>
-        <button class="nav-btn" data-view="bulk-upload">
-          <span class="nav-icon" aria-hidden="true">05</span>
-          Bulk Upload
-        </button>
       </nav>
 
       <div class="sidebar-note">
@@ -161,8 +153,8 @@
               <p>Search, filter, update records, and prepare bulk status changes.</p>
             </div>
             <div class="button-row compact">
-              <button class="btn secondary" type="button" data-view-target="bulk-upload">Bulk Upload</button>
-              <button class="btn primary" type="button" data-view-target="candidate-update">Update Candidate</button>
+              <button class="btn secondary" type="button" data-scroll-target="adminBulkPanel">Bulk Upload</button>
+              <button class="btn primary" type="button" data-scroll-target="adminUpdatePanel">Update Candidate</button>
             </div>
           </div>
           <div class="filter-grid">
@@ -189,90 +181,72 @@
           </div>
           <div class="candidate-list" id="candidateList"></div>
           </div>
-        </div>
-      </section>
 
-      <section class="view" id="candidate-update" aria-labelledby="updateHeading">
-        <div class="panel admin-locked" hidden>
-          <h3>Admin sign-in required</h3>
-          <p>Sign in from the Admin Dashboard to update candidate records.</p>
-          <div class="button-row">
-            <button class="btn primary" type="button" data-view-target="admin-dashboard">Go to Admin Login</button>
-          </div>
-        </div>
-        <div class="two-column">
-          <form class="panel" id="candidateForm">
-            <div class="panel-heading">
-              <p class="eyebrow">Individual Update</p>
-              <h3 id="updateHeading">Update Candidate</h3>
-              <p>Find or add a candidate, then update the current stage and status.</p>
-            </div>
-            <label for="editEmail">Candidate email</label>
-            <input id="editEmail" type="email" required>
-            <label for="editName">Full name</label>
-            <input id="editName" type="text" required>
-            <label for="editUniversity">University</label>
-            <input id="editUniversity" type="text" required>
-            <label for="editDegree">Degree / field of study</label>
-            <input id="editDegree" type="text" required>
-          </form>
+          <div class="two-column admin-workflow-grid" id="adminUpdatePanel">
+            <form class="panel" id="candidateForm">
+              <div class="panel-heading">
+                <p class="eyebrow">Individual Update</p>
+                <h3 id="updateHeading">Update Candidate</h3>
+                <p>Find or add a candidate, then update the current stage and status.</p>
+              </div>
+              <label for="editEmail">Candidate email</label>
+              <input id="editEmail" type="email" required>
+              <label for="editName">Full name</label>
+              <input id="editName" type="text" required>
+              <label for="editUniversity">University</label>
+              <input id="editUniversity" type="text" required>
+              <label for="editDegree">Degree / field of study</label>
+              <input id="editDegree" type="text" required>
+            </form>
 
-          <form class="panel" id="statusForm">
-            <div class="panel-heading">
-              <h3>Status Update</h3>
-              <p>Admin notes stay internal and are never shown in the candidate view.</p>
-            </div>
-            <label for="editStage">Current stage</label>
-            <select id="editStage" required></select>
-            <label for="editStatus">Current status</label>
-            <select id="editStatus" required></select>
-            <label for="editNotes">Admin notes</label>
-            <textarea id="editNotes" rows="5"></textarea>
-            <div class="button-row">
-              <button class="btn primary" type="submit">Save Update</button>
-              <button class="btn secondary" type="button" id="loadCandidateBtn">Load by Email</button>
-            </div>
-            <p class="form-message" id="updateMessage" role="status"></p>
-          </form>
-        </div>
-      </section>
-
-      <section class="view" id="bulk-upload" aria-labelledby="bulkHeading">
-        <div class="panel admin-locked" hidden>
-          <h3>Admin sign-in required</h3>
-          <p>Sign in from the Admin Dashboard to upload or apply bulk updates.</p>
-          <div class="button-row">
-            <button class="btn primary" type="button" data-view-target="admin-dashboard">Go to Admin Login</button>
-          </div>
-        </div>
-        <div class="two-column">
-          <div class="panel">
-            <div class="panel-heading">
-              <p class="eyebrow">Bulk Workflow</p>
-              <h3 id="bulkHeading">Bulk Upload / Update</h3>
-              <p>Paste CSV rows or upload a CSV file. Records are matched by unique email address.</p>
-            </div>
-            <label for="csvFile">CSV file</label>
-            <input id="csvFile" type="file" accept=".csv,text/csv">
-            <label for="csvInput">CSV content</label>
-            <textarea id="csvInput" class="mono-input" rows="10"></textarea>
-            <div class="button-row">
-              <button class="btn primary" type="button" id="validateCsvBtn">Validate Upload</button>
-              <button class="btn gold" type="button" id="applyCsvBtn" disabled>Apply Valid Updates</button>
-            </div>
-            <p class="form-message" id="bulkMessage" role="status"></p>
+            <form class="panel" id="statusForm">
+              <div class="panel-heading">
+                <h3>Status Update</h3>
+                <p>Admin notes stay internal and are never shown in the candidate view.</p>
+              </div>
+              <label for="editStage">Current stage</label>
+              <select id="editStage" required></select>
+              <label for="editStatus">Current status</label>
+              <select id="editStatus" required></select>
+              <label for="editNotes">Admin notes</label>
+              <textarea id="editNotes" rows="5"></textarea>
+              <div class="button-row">
+                <button class="btn primary" type="submit">Save Update</button>
+                <button class="btn secondary" type="button" id="loadCandidateBtn">Load by Email</button>
+              </div>
+              <p class="form-message" id="updateMessage" role="status"></p>
+            </form>
           </div>
 
-          <div class="panel">
-            <div class="panel-heading">
-              <h3>Validation Preview</h3>
-              <p>Invalid rows are blocked. Valid rows can be applied together.</p>
+          <div class="two-column admin-workflow-grid" id="adminBulkPanel">
+            <div class="panel">
+              <div class="panel-heading">
+                <p class="eyebrow">Bulk Workflow</p>
+                <h3 id="bulkHeading">Bulk Upload / Update</h3>
+                <p>Paste CSV rows or upload a CSV file. Records are matched by unique email address.</p>
+              </div>
+              <label for="csvFile">CSV file</label>
+              <input id="csvFile" type="file" accept=".csv,text/csv">
+              <label for="csvInput">CSV content</label>
+              <textarea id="csvInput" class="mono-input" rows="10"></textarea>
+              <div class="button-row">
+                <button class="btn primary" type="button" id="validateCsvBtn">Validate Upload</button>
+                <button class="btn gold" type="button" id="applyCsvBtn" disabled>Apply Valid Updates</button>
+              </div>
+              <p class="form-message" id="bulkMessage" role="status"></p>
             </div>
-            <div class="preview-summary" id="previewSummary">
-              <span>0 valid</span>
-              <span>0 invalid</span>
+
+            <div class="panel">
+              <div class="panel-heading">
+                <h3>Validation Preview</h3>
+                <p>Invalid rows are blocked. Valid rows can be applied together.</p>
+              </div>
+              <div class="preview-summary" id="previewSummary">
+                <span>0 valid</span>
+                <span>0 invalid</span>
+              </div>
+              <div class="validation-list" id="validationList"></div>
             </div>
-            <div class="validation-list" id="validationList"></div>
           </div>
         </div>
       </section>

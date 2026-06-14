@@ -349,6 +349,10 @@ button {
   margin-bottom: 18px;
 }
 
+.admin-workflow-grid {
+  margin-top: 18px;
+}
+
 .panel h3 {
   font-size: 21px;
   line-height: 1.2;
