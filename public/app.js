@@ -28,22 +28,6 @@ const statusMessages = {
   "Offer": "Congratulations. You have reached the offer stage. The hiring team will contact you with further details."
 };
 
-const seedCandidates = [
-  {
-    id: "cand-001",
-    full_name: "Amira Tan",
-    email: "amira.tan@email.com",
-    email_normalized: "amira.tan@email.com",
-    university: "University of Malaya",
-    degree_field: "Business Analytics",
-    current_stage: "Pre-Qualifying Assessment Part 1",
-    current_status: "Scheduled",
-    notes: "Demo note. Admin notes are not shown in the candidate view.",
-    last_updated_at: "2026-06-14T10:15:00+08:00",
-    created_at: "2026-06-01T09:00:00+08:00"
-  }
-];
-
 const viewMeta = {
   "candidate-login": ["Candidate Access", "Verify your email to view your personal hiring status."],
   "candidate-journey": ["Journey Status", "Full TCB journey map with current stage highlighted."],
@@ -58,23 +42,28 @@ let collection;
 let doc;
 let getDoc;
 let getDocs;
+let isSignInWithEmailLink;
 let orderBy;
 let query;
+let sendSignInLinkToEmail;
 let serverTimestamp;
 let setDoc;
 let signInWithEmailAndPassword;
+let signInWithEmailLink;
 let signOut;
 let firebaseReady = false;
 let currentAdmin = null;
-let candidates = [...seedCandidates];
-let activeCandidateEmail = "amira.tan@email.com";
+let adminSignInAttempted = false;
+let candidateSessionActive = false;
+let candidates = [];
+let activeCandidateEmail = "";
 let validatedRows = [];
 
 document.addEventListener("DOMContentLoaded", async () => {
   populateSelects();
   bindEvents();
   renderAll();
-  fillUpdateForm(getCandidateByEmail(activeCandidateEmail));
+  fillUpdateForm(null);
   setAdminUi(false);
   await initializeFirebase();
 });
@@ -97,7 +86,10 @@ async function initializeFirebase() {
       onAuthStateChanged
     } = authModule;
     ({
+      isSignInWithEmailLink,
+      sendSignInLinkToEmail,
       signInWithEmailAndPassword,
+      signInWithEmailLink,
       signOut
     } = authModule);
     const { getFirestore } = firestoreModule;
@@ -119,12 +111,14 @@ async function initializeFirebase() {
     db = getFirestore(app);
     firebaseReady = true;
     setSession("Firebase connected", true);
+    await completeCandidateEmailLinkSignIn();
 
     onAuthStateChanged(auth, async (user) => {
       if (!user) {
         currentAdmin = null;
+        candidateSessionActive = false;
         setAdminUi(false);
-        candidates = [...seedCandidates];
+        candidates = [];
         renderAll();
         return;
       }
@@ -161,8 +155,7 @@ function bindEvents() {
     button.addEventListener("click", () => scrollToAdminPanel(button.dataset.scrollTarget));
   });
 
-  document.getElementById("sendOtpBtn").addEventListener("click", sendOtp);
-  document.getElementById("loginForm").addEventListener("submit", verifyOtp);
+  document.getElementById("loginForm").addEventListener("submit", sendCandidateVerificationLink);
   document.getElementById("adminLoginForm").addEventListener("submit", adminSignIn);
   document.getElementById("adminSignOutBtn").addEventListener("click", adminSignOut);
   document.getElementById("statusForm").addEventListener("submit", saveCandidateUpdate);
@@ -178,6 +171,11 @@ function bindEvents() {
 }
 
 function showView(id) {
+  if (id === "candidate-journey" && !candidateSessionActive && !currentAdmin) {
+    id = "candidate-login";
+    document.getElementById("loginMessage").textContent = "Please verify your email before viewing your journey status.";
+  }
+
   document.querySelectorAll(".view").forEach((view) => view.classList.remove("active"));
   document.getElementById(id).classList.add("active");
 
@@ -240,9 +238,11 @@ async function adminSignIn(event) {
   const password = document.getElementById("adminPassword").value;
 
   try {
+    adminSignInAttempted = true;
     showAdminMessage("Signing in...");
     await signInWithEmailAndPassword(auth, email, password);
   } catch (error) {
+    adminSignInAttempted = false;
     showAdminMessage("Sign-in failed. Check the admin email and password.");
   }
 }
@@ -269,15 +269,69 @@ async function handleAdminSession(user) {
   if (!adminSnapshot.exists()) {
     currentAdmin = null;
     setAdminUi(false);
-    showAdminMessage(`This account is signed in but is not approved as an admin. Create Firestore document admins/${user.uid}.`);
-    await signOut(auth);
+    if (adminSignInAttempted) {
+      showAdminMessage(`This account is signed in but is not approved as an admin. Create Firestore document admins/${user.uid}.`);
+      await signOut(auth);
+      adminSignInAttempted = false;
+      return;
+    }
+
+    await loadCandidateForSignedInUser(user);
     return;
   }
 
   currentAdmin = user;
+  adminSignInAttempted = false;
   setAdminUi(true, user.email);
   await loadFirestoreCandidates();
   toast("Admin dashboard connected.");
+}
+
+async function completeCandidateEmailLinkSignIn() {
+  if (!isSignInWithEmailLink(auth, window.location.href)) return;
+
+  const storedEmail = window.localStorage.getItem("candidateEmailForSignIn");
+  const email = storedEmail || window.prompt("Please enter your email address to complete sign-in.");
+
+  if (!email) {
+    document.getElementById("loginMessage").textContent = "We could not complete email verification.";
+    return;
+  }
+
+  try {
+    await signInWithEmailLink(auth, normalizeEmail(email), window.location.href);
+    window.localStorage.removeItem("candidateEmailForSignIn");
+    window.history.replaceState({}, document.title, window.location.origin + window.location.pathname);
+  } catch (error) {
+    document.getElementById("loginMessage").textContent = "This verification link is invalid or expired. Please request a new email.";
+  }
+}
+
+async function loadCandidateForSignedInUser(user) {
+  const email = normalizeEmail(user.email);
+
+  try {
+    const candidateSnapshot = await getDoc(doc(db, "candidates", candidateDocId(email)));
+    if (!candidateSnapshot.exists()) {
+      document.getElementById("loginMessage").textContent = "We could not verify this email. Please contact the hiring team if you believe this is incorrect.";
+      await signOut(auth);
+      return;
+    }
+
+    const candidate = normalizeCandidate({
+      id: candidateSnapshot.id,
+      ...candidateSnapshot.data()
+    });
+    candidates = [candidate];
+    activeCandidateEmail = candidate.email;
+    candidateSessionActive = true;
+    renderCandidateJourney();
+    setSession("Candidate verified", true);
+    showView("candidate-journey");
+  } catch (error) {
+    document.getElementById("loginMessage").textContent = "We could not load your status. Please try again later.";
+    await signOut(auth);
+  }
 }
 
 async function loadFirestoreCandidates() {
@@ -314,49 +368,46 @@ function showAdminMessage(message) {
   document.getElementById("adminLoginMessage").textContent = message;
 }
 
-function sendOtp() {
-  const email = normalizeEmail(document.getElementById("candidateEmail").value);
-  const message = document.getElementById("loginMessage");
-  const candidate = getCandidateByEmail(email);
-
-  document.getElementById("otpRow").hidden = false;
-
-  if (!candidate) {
-    message.textContent = "We could not verify this email. Please contact the hiring team if you believe this is incorrect.";
-    return;
-  }
-
-  message.textContent = "OTP sent to your email. Prototype OTP: 123456.";
-  toast("OTP sent. Use 123456 in prototype mode.");
-}
-
-function verifyOtp(event) {
+async function sendCandidateVerificationLink(event) {
   event.preventDefault();
 
   const email = normalizeEmail(document.getElementById("candidateEmail").value);
-  const otp = document.getElementById("candidateOtp").value.trim();
-  const candidate = getCandidateByEmail(email);
   const message = document.getElementById("loginMessage");
 
-  if (!candidate) {
-    message.textContent = "We could not verify this email. Please contact the hiring team if you believe this is incorrect.";
+  if (!firebaseReady) {
+    message.textContent = "Email verification is still loading. Please try again in a moment.";
     return;
   }
 
-  if (otp !== "123456") {
-    message.textContent = "The OTP entered is invalid or expired.";
+  if (!email) {
+    message.textContent = "Please enter your email address.";
     return;
   }
 
-  activeCandidateEmail = candidate.email;
-  renderCandidateJourney();
-  message.textContent = "";
-  toast("OTP verified. Candidate journey opened.");
-  showView("candidate-journey");
+  try {
+    await sendSignInLinkToEmail(auth, email, {
+      url: window.location.origin + window.location.pathname,
+      handleCodeInApp: true
+    });
+    window.localStorage.setItem("candidateEmailForSignIn", email);
+    message.textContent = "If this email is registered for TCB, a secure verification link has been sent. Please check your inbox.";
+    toast("Verification email sent.");
+  } catch (error) {
+    message.textContent = "We could not send a verification email. Please try again later.";
+  }
 }
 
 function renderCandidateJourney() {
-  const candidate = getCandidateByEmail(activeCandidateEmail) || candidates[0] || seedCandidates[0];
+  const candidate = getCandidateByEmail(activeCandidateEmail) || candidates[0];
+  if (!candidate) {
+    document.getElementById("candidateName").textContent = "Candidate";
+    document.getElementById("candidateMeta").textContent = "Please verify your email to view your TCB journey.";
+    document.getElementById("currentStatusChip").textContent = "Verification required";
+    document.getElementById("candidateStatusMessage").textContent = "Your journey status will appear after your email is verified.";
+    document.getElementById("journeyMap").innerHTML = "";
+    return;
+  }
+
   const currentStageIndex = stages.findIndex((stage) => stage.name === candidate.current_stage);
 
   document.getElementById("candidateName").textContent = candidate.full_name;

@@ -79,20 +79,15 @@
           <form class="panel login-panel" id="loginForm">
             <div class="panel-heading">
               <h3>Candidate Login</h3>
-              <p>For demo access, try <strong>amira.tan@email.com</strong> and OTP <strong>123456</strong>.</p>
+              <p>Enter the email address used for your TCB application. We will send a secure verification link to that inbox.</p>
             </div>
             <div class="notice">
               Status tracking only. Full instructions, venue, meeting link and preparation notes will be sent separately by the hiring team.
             </div>
             <label for="candidateEmail">Email address</label>
-            <input id="candidateEmail" type="email" autocomplete="email" value="amira.tan@email.com" placeholder="name@email.com">
-            <div class="otp-row" id="otpRow" hidden>
-              <label for="candidateOtp">One-time passcode</label>
-              <input id="candidateOtp" type="text" inputmode="numeric" maxlength="6" value="123456" placeholder="6-digit OTP">
-            </div>
+            <input id="candidateEmail" type="email" autocomplete="email" placeholder="name@email.com" required>
             <div class="button-row">
-              <button class="btn primary" type="button" id="sendOtpBtn">Send OTP</button>
-              <button class="btn secondary" type="submit">Verify and View</button>
+              <button class="btn primary" type="submit" id="sendVerificationBtn">Send Verification Email</button>
             </div>
             <p class="form-message" id="loginMessage" role="status"></p>
           </form>
